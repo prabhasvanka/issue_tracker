@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Simple Issue Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Set API URL below if different from default -->
+    <script>
+      window.API_URL = "http://localhost:4000";
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- React + ReactDOM (development builds) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX in-browser (simple dev/demo) -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+      const API = window.API_URL || "http://localhost:4000";
+
+      function App() {
+        const [issues, setIssues] = useState([]);
+        const [form, setForm] = useState({
+          title: "",
+          description: "",
+          status: "open",
+          id: null,
+        });
+
+        useEffect(() => {
+          fetchIssues();
+        }, []);
+
+        function fetchIssues() {
+          fetch(`${API}/issues`)
+            .then((r) => r.json())
+            .then(setIssues)
+            .catch((err) => console.error(err));
+        }
+
+        function submit(e) {
+          e.preventDefault();
+          const payload = {
+            title: form.title,
+            description: form.description,
+            status: form.status,
+          };
+          if (form.id) {
+            fetch(`${API}/issues/${form.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            })
+              .then((r) => r.json())
+              .then(() => {
+                setForm({
+                  title: "",
+                  description: "",
+                  status: "open",
+                  id: null,
+                });
+                fetchIssues();
+              });
+          } else {
+            fetch(`${API}/issues`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            })
+              .then((r) => r.json())
+              .then(() => {
+                setForm({
+                  title: "",
+                  description: "",
+                  status: "open",
+                  id: null,
+                });
+                fetchIssues();
+              });
+          }
+        }
+
+        function remove(id) {
+          if (!confirm("Delete this issue?")) return;
+          fetch(`${API}/issues/${id}`, { method: "DELETE" }).then(() =>
+            fetchIssues(),
+          );
+        }
+
+        function edit(issue) {
+          setForm({
+            title: issue.title,
+            description: issue.description,
+            status: issue.status,
+            id: issue.id,
+          });
+          window.scrollTo(0, 0);
+        }
+
+        return (
+          <div className="app">
+            <h1>Issue Tracker</h1>
+            <form onSubmit={submit} className="issue-form">
+              <input
+                required
+                placeholder="Title"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+              <textarea
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+              >
+                <option value="open">open</option>
+                <option value="in-progress">in-progress</option>
+                <option value="closed">closed</option>
+              </select>
+              <div className="form-actions">
+                <button type="submit">{form.id ? "Update" : "Create"}</button>
+                {form.id && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        title: "",
+                        description: "",
+                        status: "open",
+                        id: null,
+                      })
+                    }
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+
+            <div className="issues">
+              {issues.length === 0 && <p className="muted">No issues yet.</p>}
+              {issues.map((issue) => (
+                <div key={issue.id} className="issue">
+                  <div className="meta">
+                    <strong>{issue.title}</strong>
+                    <span className={`status ${issue.status}`}>
+                      {issue.status}
+                    </span>
+                  </div>
+                  <p>{issue.description}</p>
+                  <div className="controls">
+                    <button onClick={() => edit(issue)}>Edit</button>
+                    <button onClick={() => remove(issue.id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
